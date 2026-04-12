@@ -1,7 +1,7 @@
 import json
-import numpy as np
-import torch
 from pathlib import Path
+
+import numpy as np
 
 
 def create_memmap(dat_path: Path):
@@ -36,15 +36,3 @@ def load_metadata(json_path: Path) -> dict:
 def save_metadata(json_path: Path, metadata: dict):
     with open(json_path, "w") as f:
         json.dump(metadata, f, indent=2)
-
-
-def load_features(dat_path: Path, metadata: dict, part: str, period: str) -> torch.Tensor:
-    key = f"features_{part}_{period}"
-    section = metadata["sections"][key]
-    arr = read_section(dat_path, section)
-    return torch.from_numpy(np.array(arr))
-
-
-def load_masks(output_dir: Path, part: str) -> torch.Tensor:
-    arr = np.load(output_dir / f"masks_{part}.npy")
-    return torch.from_numpy(arr)

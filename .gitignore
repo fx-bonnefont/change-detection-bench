@@ -14,12 +14,17 @@ wheels/
 *.dat
 *.h5
 *.log
+mlflow-artifacts/
+mlflow-db/
+optuna-*.db
 
 # Virtual environments
 .venv
 
 # Environment
 .env
+configs/settings.toml
+logs/
 
 # OS
-.DS_Store
+.DS_Storemlflow-db/

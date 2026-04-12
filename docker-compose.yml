@@ -4,10 +4,18 @@ services:
     ports:
       - "5001:5000"
     volumes:
-      - /Volumes/X9Pro/mlflow-data/mlflow:/mlflow
+      # SQLite backend store : sur APFS local pour avoir des locks POSIX fiables.
+      # exFAT (X9Pro) ne supporte pas fcntl() correctement → disk I/O errors.
+      - ./mlflow-db:/mlflow-db
+      # Artefacts MLFlow (modèles, plots, images loggées) : en local APFS.
+      # Le bind mount Docker Desktop vers /Volumes/X9Pro hang sur les écritures
+      # et provoque "mkdir /host_mnt/Volumes/X9Pro: file exists" au démarrage.
+      # → Pour backup, rsync `./mlflow-artifacts` vers le X9Pro hors ligne.
+      - ./mlflow-artifacts:/mlflow-artifacts
     command: >
-      mlflow server 
-      --host 0.0.0.0 
-      --port 5000 
-      --backend-store-uri sqlite:///mlflow/mlflow.db 
-      --default-artifact-root /mlflow/artifacts
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow-db/mlflow.db
+      --serve-artifacts
+      --artifacts-destination file:///mlflow-artifacts

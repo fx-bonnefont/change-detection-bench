@@ -1,49 +1,129 @@
-# change-detection-bench
+# cd-bench
 
-A workbench for experimenting with state-of-the-art semantic change detection in remote sensing imagery.
+Semantic Change Detection benchmark on HI-UCD satellite imagery. Frozen encoder (DINOv3, ConvNeXt) + trainable decoder head. All experiments tracked in MLflow.
 
-The repository is structured to facilitate rapid experimentation and to keep a traceable history of every run via an MLflow instance (Docker).
-
-## Key features
-
-- **Feature extraction** : A feature extractor computes image embeddings through a frozen DINOv3 backbone and persists the resulting tensors to disk. This avoids redundant forward passes across experiments and dramatically speeds up training.
-- **Feature dataset** : A PyTorch dataset that loads the pre-computed embeddings produced by the feature extractor, ready for downstream model training.
-- **Baseline model** : A reference model that computes cosine similarity between either the CLS tokens or the per-patch embeddings of image pairs. On the small, small-plus and base DINOv3 ViT variants, the patch-level approach yields ~10 % higher F1-score than the CLS-only variant.
-- **Plug-and-play model architecture** : Adding a new model is as simple as dropping a `your_model.py` file into `src/models/` and calling it or multiple other models implemented in the run.py file of the scripts/ folder.
-- **Quick set-up** : Just drop your personnal paths in the config.py file at the root of src.
-
-## Requirements
-
-- Python >= 3.12
-- [uv](https://github.com/astral-sh/uv) (recommended)
-- Docker & Docker Compose (for MLflow)
-
-## Getting started
+## Quick start
 
 ```bash
-# Clone and install
+# 1. Clone and install
 git clone <repo-url> && cd cd-bench
 uv sync
 
-# Start the MLflow tracking server
-docker compose up -d
+# 2. Configure paths
+cp configs/settings.toml.example configs/settings.toml
+# Edit configs/settings.toml: set raw_data_dir and features_dir to your HI-UCD location
 
-# Run an experiment
-uv run python scripts/run.py
+# 3. Start MLflow
+docker compose up -d
+# UI available at http://localhost:5001
+
+# 4. Extract features (one-time, ~15 min)
+cdbench extract -e dinov3-small
+
+# 5. Tune hyperparameters (optional but recommended, ~1h for 30 trials)
+cdbench tune -e dinov3-small -d baseline-conv
+
+# 6. Train
+cdbench train -e dinov3-small -d baseline-conv
+
+# 7. Visualize predictions
+cdbench show -r <run_id> --random 10
 ```
 
-MLflow UI is then available at `http://localhost:5001`.
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `cdbench extract` | Extract encoder features to disk (memmap). Run once per encoder. |
+| `cdbench tune` | Hyperparameter search via Optuna (loss weights, LR). Persistent SQLite DB, resumable. |
+| `cdbench train` | Train a decoder head. Loads tuned hparams from store. Evaluates on test at the end. |
+| `cdbench eval` | Evaluate a checkpoint on val or test without training. |
+| `cdbench show` | Visualize SCD predictions (semantic maps + change contours) with HI-UCD palette. |
+| `cdbench eda` | Exploratory stats on HI-UCD masks (class distributions). |
+| `cdbench bench encoder` | Benchmark encoder forward pass speed. |
+| `cdbench bench decoder` | Benchmark decoder forward+backward speed. |
+| `cdbench search` | Search HuggingFace model hub for encoder IDs. |
+| `cdbench mlflow-reset` | Purge MLflow DB, artifacts, and logs. |
+
+Run any command with `--help` for full options.
+
+## Typical workflow
+
+```
+extract ──> tune ──> train ──> show
+                       │
+                       └──> eval (on test, with a specific checkpoint)
+```
+
+1. **Extract** features once per encoder. Stored as memory-mapped files for fast loading.
+2. **Tune** loss hyperparameters with Optuna. Results saved to `configs/loss_hparams.json`. Ctrl+C safe (trials persisted in SQLite).
+3. **Train** with tuned hyperparameters (loaded automatically). Checkpoints + metrics logged to MLflow. Test set evaluated at the end of training.
+4. **Show** predictions on test images. Use `--run-id` to load a checkpoint directly from MLflow.
+
+## Configuration
+
+All paths are centralized in `configs/settings.toml`:
+
+```toml
+[data]
+raw_data_dir = "/path/to/HI-UCD"          # Contains train/, val/, test/
+features_dir = "/path/to/extracted-features"
+
+[mlflow]
+tracking_uri = "http://localhost:5001"
+db_path = "mlflow-db/mlflow.db"
+artifacts_dir = "mlflow-artifacts"
+```
+
+Tuned loss hyperparameters are stored in `configs/loss_hparams.json` (auto-updated by `cdbench tune`).
+
+## Architecture
+
+**Pipeline**: frozen encoder extracts features offline, trainable decoder predicts 2K channels (K semantic classes per date). Change = where argmax(T1) differs from argmax(T2).
+
+**Loss**: `CE_t1 + CE_t2 + lambda_dice * (Dice_t1 + Dice_t2) + lambda_bcd * BCD_loss`
+- CE + Dice for semantic segmentation at each date
+- BCD auxiliary term (focal + dice on differentiable change probability) to prevent the "same map" shortcut
+
+**Encoders**: DINOv3 (small, base), ConvNeXt (base). Registered in `src/cd_bench/models/encoders/`.
+
+**Decoders**: BaselineConv (conv + upsampling), QueryDecoder (transformer cross-attention). Registered in `src/cd_bench/models/decoders/`.
+
+**Dataset**: HI-UCD 10 raw classes remapped to 7 (0=unlabeled/ignored + 6 useful classes). Classes <1% representation merged into unlabeled.
+
+## Hardware
+
+CUDA, MPS (Apple Silicon), and CPU are auto-detected. No configuration needed.
+
+```
+CUDA  -> torch.device("cuda")   # Linux/Windows with NVIDIA GPU
+MPS   -> torch.device("mps")    # macOS with Apple Silicon
+CPU   -> torch.device("cpu")    # Fallback
+```
 
 ## Project structure
 
 ```
 cd-bench/
-├── scripts/            # Entry-point scripts (extraction, training, EDA)
-├── src/
-│   ├── data/           # Datasets and data paths
-│   ├── models/         # Model definitions (baseline + yours)
-│   ├── training/       # Trainer and metrics
-│   └── utils/          # Device helpers, I/O
-├── docker-compose.yml  # MLflow service
+├── configs/
+│   ├── settings.toml.example   # Template, copy to settings.toml
+│   ├── settings.toml           # Local config (gitignored)
+│   └── loss_hparams.json       # Tuned hyperparameters (auto-managed)
+├── src/cd_bench/
+│   ├── cli/                    # Typer commands (extract, train, tune, eval, show, ...)
+│   ├── data/                   # Datasets, splits, mask remapping
+│   ├── models/
+│   │   ├── encoders/           # Frozen feature extractors
+│   │   └── decoders/           # Trainable decoder heads
+│   ├── training/               # Trainer, losses (SCDLoss), hparams store
+│   ├── inference/              # Prediction + visualization
+│   └── utils/                  # Device detection, I/O
+├── docker-compose.yml          # MLflow server
 └── pyproject.toml
 ```
+
+## Requirements
+
+- Python >= 3.12
+- [uv](https://github.com/astral-sh/uv)
+- Docker & Docker Compose (for MLflow)

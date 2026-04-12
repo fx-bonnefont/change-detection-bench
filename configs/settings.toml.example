@@ -1,0 +1,13 @@
+# Copier ce fichier vers configs/settings.toml et adapter les chemins.
+# git clone → uv sync → cp configs/settings.toml.example configs/settings.toml → éditer → cdbench ...
+
+[data]
+# Racine des images brutes HI-UCD (contient train/, val/, test/)
+raw_data_dir = "/Volumes/X9Pro/HI-UCD"
+# Dossier où stocker les features pré-extraites (.dat + .json)
+features_dir = "/Volumes/X9Pro/HI-UCD/extracted-features"
+
+[mlflow]
+tracking_uri = "http://localhost:5001"
+db_path = "mlflow-db/mlflow.db"
+artifacts_dir = "mlflow-artifacts"

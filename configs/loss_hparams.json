@@ -1,0 +1,13 @@
+{
+  "dinov3-small__baseline-conv": {
+    "bcd_alpha": 0.8599587338764895,
+    "bcd_gamma": 1.605100233689724,
+    "best_score": 0.5446031345986426,
+    "epochs_per_trial": 6,
+    "lambda_bcd": 10.668046605158967,
+    "lambda_dice": 0.12348643729710108,
+    "lr": 0.0008196770149084974,
+    "n_trials": 14,
+    "tuned_at": "2026-04-12"
+  }
+}

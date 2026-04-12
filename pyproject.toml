@@ -8,19 +8,25 @@ dependencies = [
     "matplotlib",
     "mlflow",
     "numpy",
+    "optuna>=4.8.0",
     "pandas",
     "pillow",
+    "requests",
     "scikit-learn",
     "torch",
     "torchvision",
     "tqdm",
     "transformers",
+    "typer",
 ]
+
+[project.scripts]
+cdbench = "cd_bench.cli:app"
 
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["src*"]
+where = ["src"]
+include = ["cd_bench*"]
