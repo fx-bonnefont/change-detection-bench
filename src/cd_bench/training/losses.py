@@ -31,7 +31,7 @@ class MultiClassDiceLoss(nn.Module):
         valid_4d = valid.unsqueeze(1)
         one_hot = F.one_hot(targets, num_classes=K).permute(0, 3, 1, 2).float()
 
-        dice_sum = 0.0
+        dice_sum: torch.Tensor = torch.tensor(0.0, device=logits.device)
         count = 0
         for c in range(K):
             if c == self.ignore_index:
