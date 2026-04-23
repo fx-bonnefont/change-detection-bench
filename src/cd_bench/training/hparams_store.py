@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 HPARAMS_STORE_PATH = Path(__file__).resolve().parents[3] / "configs" / "loss_hparams.json"
 
-LOSS_KEYS = ("lambda_bcd", "bcd_alpha", "bcd_gamma")
+LOSS_KEYS = ("lambda_dice", "lambda_bcd", "bcd_alpha", "bcd_gamma")
 OPTIM_KEYS = ("lr",)
 ALL_HPARAM_KEYS = LOSS_KEYS + OPTIM_KEYS
 
