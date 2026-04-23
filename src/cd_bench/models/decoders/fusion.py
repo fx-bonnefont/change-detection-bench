@@ -11,7 +11,7 @@ import torch.nn as nn
 
 
 class RichFusion(nn.Module):
-    """Fusion riche spatio-temporelle des patches t1/t2.
+    """Fusion spatio-temporelle des patches t1/t2.
 
     Concatène ``[p1, p2, |p1 - p2|]`` puis projette en ``D_model``.
     Le token CLS est volontairement ignoré : on veut une carte purement
@@ -21,7 +21,7 @@ class RichFusion(nn.Module):
     def __init__(self, d_model: int):
         super().__init__()
         self.d_model = d_model
-        self.proj = nn.Linear(4 * d_model, d_model)
+        self.proj = nn.Linear(3 * d_model, d_model)
         self.norm = nn.LayerNorm(d_model)
         self.act = nn.GELU()
 
@@ -29,8 +29,7 @@ class RichFusion(nn.Module):
         p1 = t1[:, 1:, :]
         p2 = t2[:, 1:, :]
         diff = torch.abs(p1 - p2)
-        prod = p1 * p2
-        fusion = torch.cat([p1, p2, diff, prod], dim=-1)
+        fusion = torch.cat([p1, p2, diff], dim=-1)
         fused = self.proj(fusion)
         fused = self.act(fused)
         fused = self.norm(fused)

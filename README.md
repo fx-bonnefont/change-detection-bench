@@ -81,9 +81,9 @@ Tuned loss hyperparameters are stored in `configs/loss_hparams.json` (auto-updat
 
 **Pipeline**: frozen encoder extracts features offline, trainable decoder predicts 2K channels (K semantic classes per date). Change = where argmax(T1) differs from argmax(T2).
 
-**Loss**: `CE_t1 + CE_t2 + lambda_dice * (Dice_t1 + Dice_t2) + lambda_bcd * BCD_loss`
-- CE + Dice for semantic segmentation at each date
-- BCD auxiliary term (focal + dice on differentiable change probability) to prevent the "same map" shortcut
+**Loss**: `CE_t1 + CE_t2 + lambda_bcd * Focal_change`
+- CE for semantic segmentation at each date
+- Focal auxiliary term on differentiable change probability to prevent the "same map" shortcut
 
 **Encoders**: DINOv3 (small, base), ConvNeXt (base). Registered in `src/cd_bench/models/encoders/`.
 

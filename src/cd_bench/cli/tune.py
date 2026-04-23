@@ -1,8 +1,8 @@
 """Sous-commande ``cdbench tune`` : recherche d'hyperparamètres via Optuna.
 
-Optimise ``lambda_dice`` de :class:`SCDLoss` en maximisant le ``mean_iou``
-sur le split ``val``. Le split ``test`` n'est **jamais** vu pendant le
-tuning.
+Optimise ``lambda_bcd``, ``bcd_alpha``, ``bcd_gamma`` et ``lr`` de
+:class:`SCDLoss` en maximisant ``0.75*bcd_iou + 0.25*mean_iou`` sur le
+split ``val``. Le split ``test`` n'est **jamais** vu pendant le tuning.
 
 Chaque trial = 1 run MLflow nested sous une parent run "sweep".
 """
@@ -77,7 +77,6 @@ def tune(
 
     def objective(trial: optuna.Trial) -> float:
         loss_kwargs = {
-            "lambda_dice": trial.suggest_float("lambda_dice", 0.1, 10.0, log=True),
             "lambda_bcd": trial.suggest_float("lambda_bcd", 2.0, 20.0, log=True),
             "bcd_alpha": trial.suggest_float("bcd_alpha", 0.7, 0.95),
             "bcd_gamma": trial.suggest_float("bcd_gamma", 1.0, 8.0),

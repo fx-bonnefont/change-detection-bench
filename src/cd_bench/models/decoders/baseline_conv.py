@@ -59,21 +59,15 @@ class BaselineConvHead(nn.Module):
             nn.GELU(),
         )
 
-        # Upsampling apprenable : 3 ×2 = ×8, qui amène patch-16 (side=32)
-        # à 256×256. Le passage final 256 -> out_size est fait par un
-        # ``F.interpolate(nearest)`` — nearest ×2 au lieu de ×4 préserve
-        # mieux les frontières de changement.
-        c1, c2, c3 = hidden, max(hidden // 2, 8), max(hidden // 4, 8)
+        # Upsampling apprenable : 2 ×2 = ×4, qui amène patch-16 (side=32)
+        # à 128×128. Le passage final 128 -> out_size est fait par un
+        # ``F.interpolate(nearest)``.
+        c1, c2 = hidden, max(hidden // 2, 8)
         self.up = nn.Sequential(
             _UpBlock(hidden, c1),
             _UpBlock(c1, c2),
-            _UpBlock(c2, c3),
         )
-        self.refine = nn.Sequential(
-            nn.Conv2d(c3, c3, kernel_size=3, padding=1),
-            nn.GELU(),
-        )
-        self.head = nn.Conv2d(c3, out_channels, kernel_size=1)
+        self.head = nn.Conv2d(c2, out_channels, kernel_size=1)
 
     def forward(self, t1: torch.Tensor, t2: torch.Tensor) -> torch.Tensor:
         feats = self.fusion(t1, t2)
@@ -85,10 +79,9 @@ class BaselineConvHead(nn.Module):
         x = feats.transpose(1, 2).reshape(b, d, side, side)
         x = self.proj(x)
         x = self.up(x)
-        x = self.refine(x)
         logits = self.head(x)
 
-        # Upscaling final non-apprenable 256 -> 512 (×2 nearest).
+        # Upscaling final non-apprenable 128 -> 512 (×4 nearest).
         if logits.shape[-1] != self.out_size:
             logits = F.interpolate(
                 logits, size=(self.out_size, self.out_size), mode="nearest"

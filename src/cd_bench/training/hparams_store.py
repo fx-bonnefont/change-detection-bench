@@ -4,7 +4,8 @@ Format JSON plat (versionné dans git, à ``configs/loss_hparams.json``) :
 
     {
       "<encoder>__<decoder>": {
-        "lambda_dice": float,
+        "lambda_bcd": float, "bcd_alpha": float, "bcd_gamma": float,
+        "lr": float,
         "best_score": float, "tuned_at": "YYYY-MM-DD",
         "n_trials": int, "epochs_per_trial": int
       },
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 HPARAMS_STORE_PATH = Path(__file__).resolve().parents[3] / "configs" / "loss_hparams.json"
 
-LOSS_KEYS = ("lambda_dice", "lambda_bcd", "bcd_alpha", "bcd_gamma")
+LOSS_KEYS = ("lambda_bcd", "bcd_alpha", "bcd_gamma")
 OPTIM_KEYS = ("lr",)
 ALL_HPARAM_KEYS = LOSS_KEYS + OPTIM_KEYS
 
@@ -50,7 +51,7 @@ def save_store(store: dict, path: Path = HPARAMS_STORE_PATH) -> None:
 def get_loss_kwargs(
     encoder: str, decoder: str, path: Path = HPARAMS_STORE_PATH
 ) -> dict | None:
-    """Retourne ``{lambda_dice}`` ou ``None`` si non tuné."""
+    """Retourne ``{lambda_bcd, bcd_alpha, bcd_gamma}`` ou ``None`` si non tuné."""
     store = load_store(path)
     entry = store.get(make_key(encoder, decoder))
     if entry is None:
