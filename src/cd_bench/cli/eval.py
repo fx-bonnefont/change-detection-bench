@@ -20,18 +20,33 @@ from cd_bench.utils.device import get_device
 from cd_bench.utils.io import load_metadata
 
 
-def _resolve_checkpoint(checkpoint: str | None, run_id: str | None) -> str:
+def _resolve_checkpoint(checkpoint: str | None, run_id: str | None, decoder: str = "baseline-conv") -> str:
     if checkpoint is not None:
         p = Path(checkpoint)
         if not p.exists():
             raise typer.BadParameter(f"Checkpoint introuvable : {p}")
         return str(p)
+
+    import mlflow
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    client = mlflow.tracking.MlflowClient()
+
     if run_id is not None:
-        import mlflow
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-        client = mlflow.tracking.MlflowClient()
         return client.download_artifacts(run_id, "checkpoints/best.pt")
-    raise typer.BadParameter("Il faut fournir --checkpoint ou --run-id.")
+
+    # Cherche le run le plus récent avec un checkpoint dans l'expérience TRAIN
+    exp = client.get_experiment_by_name(f"CD-BENCH_{decoder}")
+    if exp is None:
+        raise typer.BadParameter(f"Aucune expérience MLflow 'CD-BENCH_{decoder}'. Lance `cdbench train` d'abord.")
+    runs = client.search_runs(
+        experiment_ids=[exp.experiment_id],
+        order_by=["start_time DESC"],
+        max_results=1,
+    )
+    if not runs:
+        raise typer.BadParameter("Aucun run trouvé. Lance `cdbench train` d'abord.")
+    typer.echo(f"Run MLflow le plus récent : {runs[0].info.run_id}")
+    return client.download_artifacts(runs[0].info.run_id, "checkpoints/best.pt")
 
 
 def eval(
@@ -64,7 +79,7 @@ def eval(
         prefetch_factor=4 if num_workers > 0 else None,
     )
 
-    ckpt_path = _resolve_checkpoint(checkpoint, run_id)
+    ckpt_path = _resolve_checkpoint(checkpoint, run_id, decoder)
     typer.echo(f"Chargement du modèle {encoder} + {decoder} depuis {ckpt_path}...")
     model = load_model(encoder, decoder, ckpt_path)
     device = get_device()

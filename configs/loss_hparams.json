@@ -4,7 +4,7 @@
     "bcd_gamma": 1.6,
     "lambda_bcd": 10.0,
     "lambda_dice": 1.0,
-    "lr": 0.0008,
+    "lr": 0.002,
     "best_score": 0.5446,
     "n_trials": 16,
     "epochs_per_trial": 6,

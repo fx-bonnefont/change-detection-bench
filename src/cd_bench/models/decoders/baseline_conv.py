@@ -22,14 +22,7 @@ OUT_CHANNELS = 2 * (N_CLASSES + 1)  # K classes pour T1 + K pour T2
 
 
 class _UpBlock(nn.Module):
-    """Upsampling apprenable ×2 via ConvTranspose2d + GELU.
-
-    Remplace l'ancienne combinaison ``F.interpolate + Conv2d 3×3`` qui
-    déclenchait un chemin backward catastrophiquement lent sur MPS
-    (~12× le forward). ``ConvTranspose2d`` est une op fusionnée bien
-    optimisée par Metal, et apprend toujours un upsampling 2× — pattern
-    standard des U-Net et décodeurs modernes.
-    """
+    """Upsampling apprenable ×2 via ConvTranspose2d + GELU."""
 
     def __init__(self, in_ch: int, out_ch: int):
         super().__init__()
@@ -61,7 +54,7 @@ class BaselineConvHead(nn.Module):
 
         # Upsampling apprenable : 2 ×2 = ×4, qui amène patch-16 (side=32)
         # à 128×128. Le passage final 128 -> out_size est fait par un
-        # ``F.interpolate(nearest)``.
+        # ``F.interpolate(nearest)`` (×4).
         c1, c2 = hidden, max(hidden // 2, 8)
         self.up = nn.Sequential(
             _UpBlock(hidden, c1),
